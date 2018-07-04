@@ -1,43 +1,23 @@
-/**
- * index
- * @author oldj
- * @blog https://oldj.net
- */
-
-'use strict'
-
 const path = require('path')
 const exec = require('child_process').exec
+const iconv = require('iconv-lite')
 
 function tryToGetFonts (s) {
-  let a = s.split('\n')
-  if (a[0].includes('Microsoft')) {
-    a.splice(0, 3)
-  }
-
-  a = a.map(i => {
-    i = i
-      .split('\t')[0]
-      .split(path.sep)
-    i = i[i.length - 1]
-
-    if (!i.match(/^[\w\s]+$/)) {
-      i = ''
-    }
-
-    i = i
-      .replace(/^\s+|\s+$/g, '')
-      .replace(/(Regular|常规)$/i, '')
-      .replace(/^\s+|\s+$/g, '')
-
-    if (i.includes(' ')) {
-      i = `"${i}"`
-    }
-
-    return i
-  })
-
-  return a.filter(i => i)
+	s = s.replace(/\r/g, "\n")
+	let lines = s.split('\n')
+	const fonts = []
+	for(const line of lines) {
+		if(!line) continue
+		let name = line.split('\t')[1]
+		if(name) {
+			name = name.replace(/常规/, "")
+			name = name.replace(/粗体/, "")
+			name = name.trim()
+		}
+		// console.log(name, "|||", line)
+		if(name) fonts.push(name)
+	}
+	return fonts
 }
 
 module.exports = () => new Promise((resolve, reject) => {
@@ -46,7 +26,7 @@ module.exports = () => new Promise((resolve, reject) => {
   //fs.writeFileSync(fn, c, 'utf-8')
 
   let cmd = `cscript "${fn}"`
-  exec(cmd, (err, stdout, stderr) => {
+  exec(cmd, { encoding: 'buffer' }, (err, stdout, stderr) => {
     let fonts = []
 
     if (err) {
@@ -56,11 +36,11 @@ module.exports = () => new Promise((resolve, reject) => {
 
     if (stdout) {
       //require('electron').dialog.showMessageBox({message: 'stdout: ' + stdout})
-      fonts = fonts.concat(tryToGetFonts(stdout))
+      fonts = fonts.concat(tryToGetFonts(iconv.decode(stdout, 'cp936')))
     }
     if (stderr) {
       //require('electron').dialog.showMessageBox({message: 'stderr: ' + stderr})
-      fonts = fonts.concat(tryToGetFonts(stderr))
+      fonts = fonts.concat(tryToGetFonts(iconv.decode(stderr, 'cp936')))
     }
 
     fonts.sort()
